@@ -95,6 +95,8 @@ int verificarCampos(char* string) {
 //Créditos: hmjd --> https://stackoverflow.com/questions/9210528/split-string-with-delimiters-in-c
 char** str_split(char* a_str, const char a_delim)
 {
+
+    printf("string recebida:\n %s\n", a_str);
     char** result = 0;
     size_t count = 0;
     char* tmp = a_str;
@@ -136,7 +138,7 @@ char** str_split(char* a_str, const char a_delim)
         }
         *(result + idx) = 0;
     }
-
+    printf("result:\n %s\n", result);
     return result;
 }
 
@@ -164,7 +166,7 @@ void lerCoordenadasGps(const char* string) {
     case 2:
         itter_gps++;
         printf("Mensagem vazia, tentando novamente\nN umero de tentativas: %d\n\n", itter_gps);
-        if (itter_gps >= 5) {
+        if (itter_gps >= 25) {
             printf("Numero maximo de tentativas atingido\n\n\n");
         }
         return;
@@ -237,8 +239,14 @@ struct Antena{
     char cell[5];
 };
 
-struct Antena lerCoordenadasTri(char* string) {
-    
+typedef struct Antenas {
+    struct Antena antena1;
+    struct Antena antena2;
+    struct Antena antena3;
+};
+
+struct Antena processarLinhasTri(char* string) {
+    printf("string recebida:\n%s\n", string);
     struct Antena antena = { 0 };
     char* campos[5];
     char** tkn;
@@ -281,6 +289,34 @@ struct Antena lerCoordenadasTri(char* string) {
 }
 
 
+
+struct Antenas coordenadasTri(char* string) {
+    //Pegando as linhas da função
+
+    char** linhas = str_split(string, '\n');
+    struct Antenas antenasMqtt = {0};
+    
+    printf("linhas + 1:\n %s\n", linhas + 1);
+    printf("linhas + 2:\n %s\n", linhas + 2);
+    printf("linhas + 3:\n %s\n", linhas + 3);
+    printf("linhas + 4:\n %s\n", linhas + 4);
+    printf("linhas + 5:\n %s\n", linhas + 5);
+    printf("linhas + 6:\n %s\n", linhas + 6);
+    if (linhas)
+    {
+        antenasMqtt.antena1 = processarLinhasTri(linhas + 2);
+        antenasMqtt.antena2 = processarLinhasTri(linhas + 4);
+        antenasMqtt.antena3 = processarLinhasTri(linhas + 6);
+        
+        printf("\n");
+    }
+    printf("cell id 1 = %s\n", antenasMqtt.antena1.cell);
+    printf("cell id 2 = %s\n", antenasMqtt.antena2.cell);
+    printf("cell id 3 = %s\n", antenasMqtt.antena3.cell);
+    return antenasMqtt;
+}
+
+
 //OK da serial:
 int wait_for_response_gps(int* verifier)
 {
@@ -317,13 +353,6 @@ void execute_at_command_gps(char* command, struct sp_port* port, int* verifier) 
     //espera ok da serial
     return wait_for_response_gps(verifier);
 }
-
-//void stop_engine(struct sp_port* port) {
-//    printf("\n\nEncerrando GPS...");
-//    execute_at_command_gps("AT^SGPSC=\"Engine\",\"0\"\r", port, &ok_received_gps);
-//    return;
-//}
-
 
 //Leitura da serial
 //ReadSerialInternal
@@ -362,7 +391,7 @@ void read_serial_internal_gps(struct sp_port* port) {
 
             //AT^SMONP
             if (strstr(buffer + startString, "2G")) {
-                lerCoordenadasTri(buffer);
+                coordenadasTri(buffer);
             }
             else if (got_ok || strstr(buffer + startString, "ERROR") != NULL) {
                 ok_received_gps = got_ok;
@@ -442,7 +471,7 @@ void start_gps_routine(struct sp_port* port) {
 
     //esperar tentativas
 retry:
-    if (itter_gps < 5) {
+    if (itter_gps < 25) {
         goto retry;
     }
     else {
@@ -465,11 +494,15 @@ retry:
 }
 
 void start_triangulation_routine(struct sp_port* port) {
-    printf("Rotina de triangulação de Antenna");
-
+    printf("==============================================\n");
+    printf("====== Rotina de triangulacao de Antena ======\n");
+    printf("==============================================\n");
 
     readNext_gps = 0;
     execute_at_command_gps("AT^SMONP\r", port, &ok_received_gps);
-    readNext_gps = 1;
+    readNext_gps = 1; 
+
+    //MQTT
+
     
 }

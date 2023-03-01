@@ -133,6 +133,7 @@ void pacote_1(uint8_t* ecg) {
     // lendo o arquivo
     FILE* arquivo;
     arquivo = fopen("C:\\Users\\igorf\\Downloads\\dea-develop\\ecg-75s.txt", "r");
+    //arquivo = fopen("C:\\Users\\telef\\Documentos\\DEA develop\\DEA---testes\\ecg-75s.txt", "r");
     // arquivo = fopen("ecg-75s.txt", "r");
 
 
