@@ -9,7 +9,8 @@
 
 
 #define GOTO_IF_FALSE(x, y) if (!(x)) goto y
-#define MESSAGE_SIZE 1500
+#define MESSAGE_SIZE 150
+
 
 int ok_received_gps = FALSE;
 int connected_gps = FALSE;
@@ -18,7 +19,8 @@ int mcc_gps = 0;
 int mnc_gps = 0;
 int readNext_gps = 1;
 int itter_gps = 0;
-int sucessos_antena = 0;
+int antena_ok = 0;
+int qtdeLinhas = 0;
 
 //Função que verifica quais campos da mensagem NMEA não estão presentes retornando sua posição.
 int verificarCampos(char* string) {
@@ -55,35 +57,35 @@ int verificarCampos(char* string) {
 
                 case 7:
                     printf("Campo ausente: Indicador de qualidade\n\r");
-                    return 7;
+                    return 3;
 
                 case 8:
                     printf("Campo ausente: Quantidade de satélites\n\r");
-                    return 8;
+                    return 3;
 
                 case 9:
                     printf("Campo ausente: HDOP\n\r");
-                    return 9;
+                    return 3;
 
                 case 10:
                     printf("Campo ausente: Altitude da Antena\n\r");
-                    return 10;
+                    return 3;
 
                 case 11:
                     printf("Campo ausente: Unidade de altitude\n\r");
-                    return 11;
+                    return 3;
 
                 case 12:
                     printf("Campo ausente: Geoidal\n\r");
-                    return 12;
+                    return 3;
 
                 case 13:
                     printf("Campo ausente: Unidade geoidal\n\r");
-                    return 13;
+                    return 3;
 
                 case 14:
                     printf("Campo ausente: Correção\n\r");
-                    return 14;
+                    return 3;
                 
                 }
             }
@@ -95,8 +97,10 @@ int verificarCampos(char* string) {
 //Créditos: hmjd --> https://stackoverflow.com/questions/9210528/split-string-with-delimiters-in-c
 char** str_split(char* a_str, const char a_delim)
 {
+    if (a_delim == '\n') {
 
-    printf("string recebida:\n %s\n", a_str);
+    }
+
     char** result = 0;
     size_t count = 0;
     char* tmp = a_str;
@@ -135,10 +139,13 @@ char** str_split(char* a_str, const char a_delim)
             assert(idx < count);
             *(result + idx++) = _strdup(token);
             token = strtok(0, delim);
+
+            if (a_delim == '\n') {
+                qtdeLinhas++;
+            }
         }
         *(result + idx) = 0;
     }
-    printf("result:\n %s\n", result);
     return result;
 }
 
@@ -165,7 +172,7 @@ void lerCoordenadasGps(const char* string) {
         return;
     case 2:
         itter_gps++;
-        printf("Mensagem vazia, tentando novamente\nN umero de tentativas: %d\n\n", itter_gps);
+        printf("Mensagem vazia, tentando novamente...\nNumero de tentativas: %d\n\n", itter_gps);
         if (itter_gps >= 25) {
             printf("Numero maximo de tentativas atingido\n\n\n");
         }
@@ -177,8 +184,7 @@ void lerCoordenadasGps(const char* string) {
 
     if (tokens)
     {
-        int i;
-        for (i = 0; *(tokens + i); i++)
+        for (int i = 0; *(tokens + i); i++)
         {
             campos[i] = *(tokens + i);
         }
@@ -227,12 +233,22 @@ void lerCoordenadasGps(const char* string) {
     printf("longitude minutos = %d\n", longitude1.minutos);
     printf("longitude segundos = %lf\n", longitude1.segundos);
     itter_gps = 0;
+    
+
+    if (tokens) {
+        for (int i = 0; *(tokens + i); i++)
+        {
+            free(*(tokens + i));
+        }
+        free(tokens);
+    }
+    
 }
 
 
 
 struct Antena{
-    char sinal[4];
+    char sinal[5];
     char mcc[5];
     char mnc[5];
     char lac[5];
@@ -240,35 +256,34 @@ struct Antena{
 };
 
 typedef struct Antenas {
-    struct Antena antena1;
-    struct Antena antena2;
-    struct Antena antena3;
+    struct Antena lista[5];
 };
 
 struct Antena processarLinhasTri(char* string) {
     printf("string recebida:\n%s\n", string);
     struct Antena antena = { 0 };
-    char* campos[5];
+    char* campos[13];
     char** tkn;
     // criando um retorno caso não encontre todos os dados.
     struct Antena erro = { '0', '0', '0', '0', '0' };
     int aux = 0;
 
-    // fazer a divisão por ,
+    // fazer a divisão por vírgula
     tkn = str_split(string, ',');
     if (tkn) {
         int i;
         for (i = 0; *(tkn + i); i++) {
             campos[i] = *(tkn + i);
+            printf("campos[%d] = %s\n", i, campos[i]);
         }
     }
 
 
     char lixo[3] = "---";
     for (int i = 0; i < 13; i++) {
-        int ret = strcmp(lixo, campos[i]);
+        int ret = strstr(lixo, campos[i]);
 
-        if (ret == 0) {
+        if (ret != NULL) {
             printf("Falta um item\n");
             aux = 1;
         }
@@ -281,11 +296,18 @@ struct Antena processarLinhasTri(char* string) {
         strcpy(antena.lac, campos[9]);
         strcpy(antena.cell, campos[10]);
 
+        printf("antena.sinal = %s\n", antena.sinal);
+        printf("antena.mcc = %s\n", antena.mcc);
+        printf("antena.mnc = %s\n", antena.mnc);
+        printf("antena.lac = %s\n", antena.lac);
+        printf("antena.cell = %s\n", antena.cell);
+        
         return antena;
     }
     else {
         return erro;
     }
+
 }
 
 
@@ -295,24 +317,67 @@ struct Antenas coordenadasTri(char* string) {
 
     char** linhas = str_split(string, '\n');
     struct Antenas antenasMqtt = {0};
-    
-    printf("linhas + 1:\n %s\n", linhas + 1);
-    printf("linhas + 2:\n %s\n", linhas + 2);
-    printf("linhas + 3:\n %s\n", linhas + 3);
-    printf("linhas + 4:\n %s\n", linhas + 4);
-    printf("linhas + 5:\n %s\n", linhas + 5);
-    printf("linhas + 6:\n %s\n", linhas + 6);
+    char buffer_teste[150] = { 0 };
+    char aux[50] = { 0 };
+
+
+    printf("Qtde de linhas = %d\n\n", qtdeLinhas);
+
     if (linhas)
     {
-        antenasMqtt.antena1 = processarLinhasTri(linhas + 2);
-        antenasMqtt.antena2 = processarLinhasTri(linhas + 4);
-        antenasMqtt.antena3 = processarLinhasTri(linhas + 6);
+        for (int i = 2; i < qtdeLinhas/2 + 2; i++) {
+            antenasMqtt.lista[i-2] = processarLinhasTri(*(linhas + i));
+        }
         
         printf("\n");
     }
-    printf("cell id 1 = %s\n", antenasMqtt.antena1.cell);
-    printf("cell id 2 = %s\n", antenasMqtt.antena2.cell);
-    printf("cell id 3 = %s\n", antenasMqtt.antena3.cell);
+    
+    printf("mcc [0]: %s\n", antenasMqtt.lista[0].mcc);
+
+
+    _itoa(qtdeLinhas/2, buffer_teste, 10);
+
+
+
+
+    strcat(buffer_teste, ',');
+    strcpy(aux, antenasMqtt.lista[0].mcc);
+    strcat(buffer_teste, aux);
+
+    printf("buffer_teste: %s\n", buffer_teste);
+
+    for (int i = 0; i < 3; i++) {
+                        //qtdeLinhas / 2
+        
+        strcat(buffer_teste, ',');
+        strcat(buffer_teste, antenasMqtt.lista[i].mcc);
+
+        strcat(buffer_teste, ',');
+        strcat(buffer_teste, antenasMqtt.lista[i].mnc);
+
+        strcat(buffer_teste, ',');
+        strcat(buffer_teste, antenasMqtt.lista[i].sinal);
+
+        strcat(buffer_teste, ',');
+        strcat(buffer_teste, antenasMqtt.lista[i].cell);
+
+        strcat(buffer_teste, ',');
+        strcat(buffer_teste, antenasMqtt.lista[i].lac);
+
+    }
+
+    printf("string a ser enviada:\n%s\n", buffer_teste);
+
+    if (linhas) {
+        for (int i = 0; *(linhas + i); i++)
+        {
+            free(*(linhas + i));
+        }
+
+        free(linhas);
+    }
+
+
     return antenasMqtt;
 }
 
@@ -374,14 +439,6 @@ void read_serial_internal_gps(struct sp_port* port) {
             //printf("%s", buffer + startString);
             int got_ok = strstr(buffer + startString, "OK") != NULL || strstr(buffer + startString, "^SYSSTART") != NULL;
             //Verifica se retornou o código
-            if (strstr(buffer + startString, "^SGPSC: \"Nmea / GPS\",\"on\"")) {
-                printf("GPS ligado\r\n");
-            }
-
-            if (strstr(buffer + startString, "^SGPSC: \"Engine/StartMode\",\"1\"")) {
-                printf("START MODE 1 confirmado\n\n\r\n");
-            }
-       
             if (strstr(buffer + startString, "GPGGA")) {
                 char NMEA[1024] = "";
                 //Fazer isso para string não atualizar enquanto estamos na função
@@ -429,7 +486,7 @@ void configure_serial_gps(char* port_name, struct sp_port** port_pointer) {
 }
 
 void start_gps_routine(struct sp_port* port) {
-    printf("==========================GPS============================\n\n");
+    printf("========================= GPS ===========================\n\n");
 
     printf("                   , , ggddY~~~Ybbgg,,\n");
     printf("               ,agd888b,_ ~Y8, ___`~~Ybga,\n");
@@ -498,9 +555,20 @@ void start_triangulation_routine(struct sp_port* port) {
     printf("====== Rotina de triangulacao de Antena ======\n");
     printf("==============================================\n");
 
-    readNext_gps = 0;
-    execute_at_command_gps("AT^SMONP\r", port, &ok_received_gps);
-    readNext_gps = 1; 
+    antena_ok = 0;
+    smonp:
+    switch (antena_ok) 
+    {
+    case 0:
+        readNext_gps = 0;
+        execute_at_command_gps("AT^SMONP\r", port, &ok_received_gps);
+        readNext_gps = 1;
+        antena_ok = 1;
+    case 1:
+        goto smonp;
+    case 2:
+        break;
+    } 
 
     //MQTT
 
