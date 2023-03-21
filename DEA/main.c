@@ -16,7 +16,7 @@
  * PRIVATE DEFINES
  *************************************************************************************************/
 
-#define PORT "COM3"
+#define PORT "COM10"
 //#define PUBLISH //REMOVER COMENTARIO QND RODAR MQTT
 //#define SEND
 #define ANTENA

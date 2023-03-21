@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <Windows.h>
 #include <string.h>
+#include <stdlib.h>
 #include <time.h> 
 #include <stdint.h>
 #include <assert.h>
@@ -195,11 +196,12 @@ void lerCoordenadasGps(const char* string) {
     typedef struct {
         int graus;
         int minutos;
-        float segundos;
+        double segundos;
     }coordenada;
 
     char sgrauLatitude[2] = "";
     strncpy(sgrauLatitude, campos[S_Latitude], 2);
+
     int grau = atof(sgrauLatitude);
     int minuto = atof((campos[S_Latitude] + 2));
     double segundo = atof((campos[S_Latitude] + 2));
@@ -255,11 +257,11 @@ struct Antena{
     char cell[5];
 };
 
-typedef struct Antenas {
+struct Antenas{
     struct Antena lista[5];
 };
 
-struct Antena processarLinhasTri(char* string) {
+struct Antena processarLinhasTri(const char* string) {
     printf("string recebida:\n%s\n", string);
     struct Antena antena = { 0 };
     char* campos[13];
@@ -281,20 +283,20 @@ struct Antena processarLinhasTri(char* string) {
 
     char lixo[3] = "---";
     for (int i = 0; i < 13; i++) {
-        int ret = strstr(lixo, campos[i]);
+        char* ret = strstr(lixo, campos[i]);
 
         if (ret != NULL) {
             printf("Falta um item\n");
             aux = 1;
         }
+        qtdeLinhas--;
+        return erro;
     }
-
-    if (aux == 0) {
-        strcpy(antena.sinal, campos[2]);
-        strcpy(antena.mcc, campos[3]);
-        strcpy(antena.mnc, campos[4]);
-        strcpy(antena.lac, campos[9]);
-        strcpy(antena.cell, campos[10]);
+        strncpy(antena.sinal, campos[2], 5);
+        strncpy(antena.mcc, campos[3], 5);
+        strncpy(antena.mnc, campos[4], 5);
+        strncpy(antena.lac, campos[9], 5);
+        strncpy(antena.cell, campos[10], 5);
 
         printf("antena.sinal = %s\n", antena.sinal);
         printf("antena.mcc = %s\n", antena.mcc);
@@ -302,11 +304,14 @@ struct Antena processarLinhasTri(char* string) {
         printf("antena.lac = %s\n", antena.lac);
         printf("antena.cell = %s\n", antena.cell);
         
+        if (campos) {
+            for (int i = 0; *(campos + i); i++)
+                free(*(campos + i));
+
+            free(campos);
+        }
+
         return antena;
-    }
-    else {
-        return erro;
-    }
 
 }
 
@@ -316,63 +321,51 @@ struct Antenas coordenadasTri(char* string) {
     //Pegando as linhas da função
 
     char** linhas = str_split(string, '\n');
-    struct Antenas antenasMqtt = {0};
-    char buffer_teste[150] = { 0 };
-    char aux[50] = { 0 };
+    static struct Antenas antenasMqtt = {0};
+    char* ptr = 0;
+    char teste[10] = {0};
+    char const aux[10] = { 0 };
+    char buffer[200];
 
 
-    printf("Qtde de linhas = %d\n\n", qtdeLinhas);
+    ptr = _itoa((qtdeLinhas + 1)/2, buffer, 10);
+    printf("quantidade_Linhas: %s\n\n", buffer);
 
     if (linhas)
     {
-        for (int i = 2; i < qtdeLinhas/2 + 2; i++) {
+        for (int i = 2; i < qtdeLinhas - 3 + 2; i++) {
+
             antenasMqtt.lista[i-2] = processarLinhasTri(*(linhas + i));
+            
+
+            if (antenasMqtt.lista[i - 2].mcc != 0) {
+            strcat_s(buffer, 200, ",");
+            strcat_s(buffer, 200, antenasMqtt.lista[i - 2].mcc);
+
+            strcat_s(buffer, 200, ",");
+            strcat_s(buffer, 200, antenasMqtt.lista[i - 2].mnc);
+
+            strcat_s(buffer, 200, ",");
+            strcat_s(buffer, 200, antenasMqtt.lista[i - 2].sinal);
+
+            strcat_s(buffer, 200, ",");
+            strcat_s(buffer, 200, antenasMqtt.lista[i - 2].cell);
+
+            strcat_s(buffer, 200, ",");
+            strcat_s(buffer, 200, antenasMqtt.lista[i - 2].lac);
+            }
+
+            
         }
         
         printf("\n");
     }
-    
-    printf("mcc [0]: %s\n", antenasMqtt.lista[0].mcc);
 
-
-    _itoa(qtdeLinhas/2, buffer_teste, 10);
-
-
-
-
-    strcat(buffer_teste, ',');
-    strcpy(aux, antenasMqtt.lista[0].mcc);
-    strcat(buffer_teste, aux);
-
-    printf("buffer_teste: %s\n", buffer_teste);
-
-    for (int i = 0; i < 3; i++) {
-                        //qtdeLinhas / 2
-        
-        strcat(buffer_teste, ',');
-        strcat(buffer_teste, antenasMqtt.lista[i].mcc);
-
-        strcat(buffer_teste, ',');
-        strcat(buffer_teste, antenasMqtt.lista[i].mnc);
-
-        strcat(buffer_teste, ',');
-        strcat(buffer_teste, antenasMqtt.lista[i].sinal);
-
-        strcat(buffer_teste, ',');
-        strcat(buffer_teste, antenasMqtt.lista[i].cell);
-
-        strcat(buffer_teste, ',');
-        strcat(buffer_teste, antenasMqtt.lista[i].lac);
-
-    }
-
-    printf("string a ser enviada:\n%s\n", buffer_teste);
+    printf("string a ser enviada:\n%s\n", buffer);
 
     if (linhas) {
         for (int i = 0; *(linhas + i); i++)
-        {
             free(*(linhas + i));
-        }
 
         free(linhas);
     }
@@ -412,7 +405,7 @@ int wait_for_response_gps(int* verifier)
 
 
 //Executar comando AT
-void execute_at_command_gps(char* command, struct sp_port* port, int* verifier) {
+int execute_at_command_gps(char* command, struct sp_port* port, int* verifier) {
     //Executa o comando, checando se não houve erro na comunicação serial
     check(sp_blocking_write(port, command, strlen(command), 0));
     //espera ok da serial
