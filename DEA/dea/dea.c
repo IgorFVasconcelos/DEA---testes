@@ -202,6 +202,8 @@ void mount_size_message_cmd_dea(char* cmd, int size)
 	char partSizeStr[5] = "";
 	_itoa_s(size, partSizeStr, 5, 10);
 	strcpy_s(cmd, 50, "AT^SISD=1,\"setParam\",\"hcContLen\",");
+	
+	
 	strcat_s(cmd, 50, partSizeStr);
 	strcat_s(cmd, 50, "\r");
 }

@@ -288,9 +288,10 @@ struct Antena processarLinhasTri(const char* string) {
         if (ret != NULL) {
             printf("Falta um item\n");
             aux = 1;
+            qtdeLinhas--;
+            return erro;
         }
-        qtdeLinhas--;
-        return erro;
+        
     }
         strncpy(antena.sinal, campos[2], 5);
         strncpy(antena.mcc, campos[3], 5);
@@ -336,23 +337,29 @@ struct Antenas coordenadasTri(char* string) {
         for (int i = 2; i < qtdeLinhas - 3 + 2; i++) {
 
             antenasMqtt.lista[i-2] = processarLinhasTri(*(linhas + i));
+
+
             
 
+
             if (antenasMqtt.lista[i - 2].mcc != 0) {
-            strcat_s(buffer, 200, ",");
-            strcat_s(buffer, 200, antenasMqtt.lista[i - 2].mcc);
 
-            strcat_s(buffer, 200, ",");
-            strcat_s(buffer, 200, antenasMqtt.lista[i - 2].mnc);
+                printf("mcc --> %s\n");
 
-            strcat_s(buffer, 200, ",");
-            strcat_s(buffer, 200, antenasMqtt.lista[i - 2].sinal);
+                strcat_s(buffer, 200, ",");
+                strcat_s(buffer, 200, antenasMqtt.lista[i - 2].mcc);
 
-            strcat_s(buffer, 200, ",");
-            strcat_s(buffer, 200, antenasMqtt.lista[i - 2].cell);
+                strcat_s(buffer, 200, ",");
+                strcat_s(buffer, 200, antenasMqtt.lista[i - 2].mnc);
 
-            strcat_s(buffer, 200, ",");
-            strcat_s(buffer, 200, antenasMqtt.lista[i - 2].lac);
+                strcat_s(buffer, 200, ",");
+                strcat_s(buffer, 200, antenasMqtt.lista[i - 2].sinal);
+
+                strcat_s(buffer, 200, ",");
+                strcat_s(buffer, 200, antenasMqtt.lista[i - 2].cell);
+
+                strcat_s(buffer, 200, ",");
+                strcat_s(buffer, 200, antenasMqtt.lista[i - 2].lac);
             }
 
             
