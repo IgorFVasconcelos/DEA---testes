@@ -8,9 +8,9 @@
 #include "../common/common.h"
 #include "libserialport.h"
 #define GOTO_IF_FALSE(x, y) if (!(x)) goto y
-#define MESSAGE_SIZE 150
+#define MESSAGE_SIZE 256
 
-char str_to_send[256];
+char str_to_send[MESSAGE_SIZE];
 int ok_received_gps = FALSE;
 int connected_gps = FALSE;
 int response_received_gps = FALSE;
@@ -260,7 +260,6 @@ struct Antenas{
 };
 
 struct Antena processarLinhasTri(const char* string) {
-    printf("string recebida:\n%s\n", string);
     struct Antena antena = { 0 };
     char* campos[13];
     char** tkn;
@@ -274,7 +273,7 @@ struct Antena processarLinhasTri(const char* string) {
         int i;
         for (i = 0; *(tkn + i); i++) {
             campos[i] = *(tkn + i);
-            printf("campos[%d] = %s\n", i, campos[i]);
+            
         }
     }
 
@@ -284,7 +283,6 @@ struct Antena processarLinhasTri(const char* string) {
         char* ret = strstr(lixo, campos[i]);
 
         if (ret != NULL) {
-            printf("Falta um item\n");
             aux = 1;
             qtdeLinhas--;
             return erro;
@@ -296,12 +294,6 @@ struct Antena processarLinhasTri(const char* string) {
         strncpy(antena.mnc, campos[4], 5);
         strncpy(antena.lac, campos[9], 5);
         strncpy(antena.cell, campos[10], 5);
-
-        printf("antena.sinal = %s\n", antena.sinal);
-        printf("antena.mcc = %s\n", antena.mcc);
-        printf("antena.mnc = %s\n", antena.mnc);
-        printf("antena.lac = %s\n", antena.lac);
-        printf("antena.cell = %s\n", antena.cell);
         
         if (tkn) {
             for (int i = 0; *(tkn + i); i++)
@@ -330,7 +322,7 @@ const char* coordenadasTri(char* string) {
     }
 
     _itoa((qtdeLinhas - 3), buffer, 10);
-    printf("quantidade_Linhas: %s\n\n", buffer);
+    printf("Antenas encontradas: %s\n\n", buffer);
 
     if (linhas)
     {
@@ -439,7 +431,7 @@ void read_serial_internal_gps(struct sp_port* port) {
             //AT^SMONP
             if (strstr(buffer + startString, "2G")) {
                 strncpy(str_to_send, coordenadasTri(buffer), 255);
-                printf("String a ser enviada: %s\n\n", str_to_send);
+                printf("String para envio:\n %s\n\n", str_to_send);
 
                 if (!strstr(str_to_send, "ERRO")) {
                     antena_ok = 2;
