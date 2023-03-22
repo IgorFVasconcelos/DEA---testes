@@ -7,12 +7,10 @@
 #include <assert.h>
 #include "../common/common.h"
 #include "libserialport.h"
-
-
 #define GOTO_IF_FALSE(x, y) if (!(x)) goto y
 #define MESSAGE_SIZE 150
 
-
+char str_to_send[256];
 int ok_received_gps = FALSE;
 int connected_gps = FALSE;
 int response_received_gps = FALSE;
@@ -267,7 +265,7 @@ struct Antena processarLinhasTri(const char* string) {
     char* campos[13];
     char** tkn;
     // criando um retorno caso não encontre todos os dados.
-    struct Antena erro = { '0', '0', '0', '0', '0' };
+    struct Antena erro = { 0 };
     int aux = 0;
 
     // fazer a divisão por vírgula
@@ -305,11 +303,11 @@ struct Antena processarLinhasTri(const char* string) {
         printf("antena.lac = %s\n", antena.lac);
         printf("antena.cell = %s\n", antena.cell);
         
-        if (campos) {
-            for (int i = 0; *(campos + i); i++)
-                free(*(campos + i));
+        if (tkn) {
+            for (int i = 0; *(tkn + i); i++)
+                free(*(tkn + i));
 
-            free(campos);
+            free(tkn);
         }
 
         return antena;
@@ -318,18 +316,20 @@ struct Antena processarLinhasTri(const char* string) {
 
 
 
-struct Antenas coordenadasTri(char* string) {
-    //Pegando as linhas da função
+const char* coordenadasTri(char* string) {
 
     char** linhas = str_split(string, '\n');
     static struct Antenas antenasMqtt = {0};
-    char* ptr = 0;
     char teste[10] = {0};
     char const aux[10] = { 0 };
-    char buffer[200];
+    char buffer[256];
 
+    if ((qtdeLinhas - 3) < 3) {
+        antena_ok = 0;
+        return "ERRO: ANTENAS INSUFICIENTES.";
+    }
 
-    ptr = _itoa((qtdeLinhas + 1)/2, buffer, 10);
+    _itoa((qtdeLinhas - 3), buffer, 10);
     printf("quantidade_Linhas: %s\n\n", buffer);
 
     if (linhas)
@@ -338,37 +338,28 @@ struct Antenas coordenadasTri(char* string) {
 
             antenasMqtt.lista[i-2] = processarLinhasTri(*(linhas + i));
 
-
-            
-
-
             if (antenasMqtt.lista[i - 2].mcc != 0) {
 
-                printf("mcc --> %s\n");
+                strcat_s(buffer, 256, ",");
+                strcat_s(buffer, 256, antenasMqtt.lista[i - 2].mcc);
 
-                strcat_s(buffer, 200, ",");
-                strcat_s(buffer, 200, antenasMqtt.lista[i - 2].mcc);
+                strcat_s(buffer, 256, ",");
+                strcat_s(buffer, 256, antenasMqtt.lista[i - 2].mnc);
 
-                strcat_s(buffer, 200, ",");
-                strcat_s(buffer, 200, antenasMqtt.lista[i - 2].mnc);
+                strcat_s(buffer, 256, ",");
+                strcat_s(buffer, 256, antenasMqtt.lista[i - 2].sinal);
 
-                strcat_s(buffer, 200, ",");
-                strcat_s(buffer, 200, antenasMqtt.lista[i - 2].sinal);
+                strcat_s(buffer, 256, ",");
+                strcat_s(buffer, 256, antenasMqtt.lista[i - 2].cell);
 
-                strcat_s(buffer, 200, ",");
-                strcat_s(buffer, 200, antenasMqtt.lista[i - 2].cell);
-
-                strcat_s(buffer, 200, ",");
-                strcat_s(buffer, 200, antenasMqtt.lista[i - 2].lac);
+                strcat_s(buffer, 256, ",");
+                strcat_s(buffer, 256, antenasMqtt.lista[i - 2].lac);
             }
 
             
         }
-        
         printf("\n");
     }
-
-    printf("string a ser enviada:\n%s\n", buffer);
 
     if (linhas) {
         for (int i = 0; *(linhas + i); i++)
@@ -378,7 +369,7 @@ struct Antenas coordenadasTri(char* string) {
     }
 
 
-    return antenasMqtt;
+    return buffer;
 }
 
 
@@ -420,7 +411,6 @@ int execute_at_command_gps(char* command, struct sp_port* port, int* verifier) {
 }
 
 //Leitura da serial
-//ReadSerialInternal
 void read_serial_internal_gps(struct sp_port* port) {
     enum sp_return code;
     char buffer[1025];
@@ -448,8 +438,15 @@ void read_serial_internal_gps(struct sp_port* port) {
 
             //AT^SMONP
             if (strstr(buffer + startString, "2G")) {
-                coordenadasTri(buffer);
+                strncpy(str_to_send, coordenadasTri(buffer), 255);
+                printf("String a ser enviada: %s\n\n", str_to_send);
+
+                if (!strstr(str_to_send, "ERRO")) {
+                    antena_ok = 2;
+                }
             }
+
+
             else if (got_ok || strstr(buffer + startString, "ERROR") != NULL) {
                 ok_received_gps = got_ok;
                 response_received_gps = TRUE;
@@ -538,16 +535,6 @@ retry:
 
     }
 
-    //printf("Iniciando triangulacao de Antena...\n\n");
-
-    //Triangulação de Antena
-    /*readNext_gps = 0;
-    execute_at_command_gps("AT^SMONP\r", port, &ok_received_gps);
-    readNext_gps = 1;*/
-
-    //MQTT
-
-
 }
 
 void start_triangulation_routine(struct sp_port* port) {
@@ -570,6 +557,7 @@ void start_triangulation_routine(struct sp_port* port) {
         break;
     } 
 
+    printf("continuei dps do smonp");
     //MQTT
 
     

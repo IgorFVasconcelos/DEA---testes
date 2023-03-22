@@ -696,7 +696,3 @@ void configure_serial_dea(char* port_name, struct sp_port** port_pointer)
 	check(sp_set_stopbits(port_pointer[0], 1));
 	check(sp_set_flowcontrol(port_pointer[0], SP_FLOWCONTROL_XONXOFF));
 }
-
-
-
-//ROTINA GPS
